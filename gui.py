@@ -2,8 +2,11 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import os
 
+from matplotlib import pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from parser import DNAParser
-
+from assembler import GenomeAssembler
+from graph_utils import GraphDrawer
 
 class GenomeAssemblyGUI(tk.Tk):
     def __init__(self):
@@ -12,13 +15,16 @@ class GenomeAssemblyGUI(tk.Tk):
         self.title("Genome Assembly using De Bruijn Graph")
         self.geometry("1500x900")
         self.minsize(1200, 700)
-        self.configure(bg = "#f2f4f7")
+        self.configure(bg="#EEF3F8")
 
         self.reads = []
         self.current_file = None
 
         self.setup_style()
         self.create_widgets()
+        self.state("zoomed")
+
+        self.resizable(False, False)
 
     def setup_style(self):
         style = ttk.Style()
@@ -65,15 +71,35 @@ class GenomeAssemblyGUI(tk.Tk):
     # Main Panel
 
     def create_widgets(self):
-        title = ttk.Label(
-            self,
-            text="Genome Assembly using De Bruijn Graph",
-            style="Title.TLabel"
-        )
 
-        title.pack(pady=10)
-        body = tk.Frame(self, bg="#f2f4f7")
+        # ===================== TOP HEADER =====================
+        header = tk.Frame(self, bg="#0F4C81", height=70)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+
+        title = tk.Label(
+            header,
+            text="Genome Assembly using De Bruijn Graph",
+            bg="#0F4C81",
+            fg="white",
+            font=("Segoe UI", 22, "bold")
+        )
+        title.pack(side="left", padx=25, pady=15)
+
+        # Optional subtitle
+        subtitle = tk.Label(
+            header,
+            text="Bioinformatics Visualization Tool",
+            bg="#0F4C81",
+            fg="#DDEEFF",
+            font=("Segoe UI", 10)
+        )
+        subtitle.pack(side="right", padx=25)
+
+        # BODY
+        body = tk.Frame(self, bg="#EEF3F8")
         body.pack(fill="both", expand=True)
+
         self.left_panel(body)
         self.right_panel(body)
 
@@ -82,7 +108,7 @@ class GenomeAssemblyGUI(tk.Tk):
     def left_panel(self, parent):
         left = tk.Frame(
             parent,
-            bg="white",
+            bg="#F8FAFD",
             bd=1,
             relief="solid",
             width=380
@@ -105,10 +131,28 @@ class GenomeAssemblyGUI(tk.Tk):
             font=("Consolas", 11)
         )
 
+        read_scroll = tk.Scrollbar(left)
+
+        self.read_text = tk.Text(
+            left,
+            width=40,
+            height=18,
+            font=("Consolas", 11),
+            yscrollcommand=read_scroll.set
+        )
+
+        read_scroll.config(command=self.read_text.yview)
+
+        read_scroll.pack(
+            side="right",
+            fill="y",
+            padx=(0, 15),
+            pady=5
+        )
         self.read_text.pack(
             padx=15,
             pady=5,
-            fill="x"
+            fill="both"
         )
 
         # load Button
@@ -231,40 +275,62 @@ class GenomeAssemblyGUI(tk.Tk):
             top,
             text="K-mers Extracted",
             font=("Segoe UI", 11, "bold"),
-            bg="white"
+            bg="#FCFCFC"
         )
 
-        self.kmer_frame.pack(side="left", fill="both", expand=True, padx=5)
+        self.kmer_frame.pack(
+            side="left",
+            fill="y",
+            padx=5
+        )
+        self.kmer_frame.config(width=260)
+        self.kmer_frame.pack_propagate(False)
 
         self.graph_frame = tk.LabelFrame(
             top,
             text="De Bruijn Graph",
             font=("Segoe UI", 11, "bold"),
-            bg="white"
+            bg="#FCFCFC"
         )
 
-        self.graph_frame.pack(side="left", fill="both", expand=True, padx=5)
+        self.graph_frame.pack(
+            side="left",
+            fill="both",
+            padx=5
+        )
+        self.graph_frame.config(width=650, height=520)
+        self.graph_frame.pack_propagate(False)
 
         self.path_frame = tk.LabelFrame(
             top,
             text="Eulerian Path",
             font=("Segoe UI", 11, "bold"),
-            bg="white",
+            bg="#FCFCFC",
             width=220
         )
 
-        self.path_frame.pack(side="left", fill="y", padx=5)
+        self.path_frame.pack(
+            side="left",
+            fill="y",
+            padx=5
+        )
+        self.path_frame.config(width=180)
+        self.path_frame.pack_propagate(False)
 
         # Bottom Row
 
         bottom = tk.Frame(self.right, bg="#f8f9fb")
-        bottom.pack(fill="x", padx=15, pady=15)
+        bottom.pack(
+            fill="both",
+            padx=15,
+            pady=10
+        )
 
         self.genome_frame = tk.LabelFrame(
             bottom,
             text="Assembled Genome",
             font=("Segoe UI", 11, "bold"),
-            bg="white"
+            bg="#FCFCFC"
         )
 
         self.genome_frame.pack(
@@ -273,49 +339,51 @@ class GenomeAssemblyGUI(tk.Tk):
             expand=True,
             padx=5
         )
+        self.genome_frame.config(height=180)
+        self.genome_frame.pack_propagate(False)
 
         self.stats_frame = tk.LabelFrame(
             bottom,
             text="Statistics",
             font=("Segoe UI", 11, "bold"),
-            bg="white",
-            width=300
+            bg="#FCFCFC",
+            width=250
         )
 
         self.stats_frame.pack(
             side="left",
-            fill="y",
+            fill="both",
             padx=5
         )
+        self.stats_frame.pack_propagate(False)
 
         self.create_result_widgets()
 
     def create_result_widgets(self):
         # K-mer box
+        kmer_scroll = tk.Scrollbar(self.kmer_frame)
+
         self.kmer_text = tk.Text(
             self.kmer_frame,
             width=25,
             height=22,
-            font=("Consolas", 11)
+            font=("Consolas", 11),
+            yscrollcommand=kmer_scroll.set
         )
 
+        kmer_scroll.config(command=self.kmer_text.yview)
+
+        kmer_scroll.pack(side="right",
+                         fill="y"
+                    )
         self.kmer_text.pack(
+            side="left",
             fill="both",
             expand=True,
             padx=10,
             pady=10
         )
-
-        # Graph
-        self.graph_placeholder = tk.Label(
-            self.graph_frame,
-            text="\n\nGraph will appear here",
-            font=("Segoe UI", 13),
-            bg="white",
-            fg="gray"
-        )
-
-        self.graph_placeholder.pack(expand=True)
+        self.kmer_text.config(state="disabled")
 
         # Eulerian Path
         self.path_text = tk.Text(
@@ -325,26 +393,46 @@ class GenomeAssemblyGUI(tk.Tk):
             font=("Consolas", 11)
         )
 
+        path_scroll = tk.Scrollbar(self.path_frame)
+
+        self.path_text = tk.Text(
+            self.path_frame,
+            width=18,
+            height=22,
+            font=("Consolas", 11),
+            yscrollcommand=path_scroll.set
+        )
+
+        path_scroll.config(command=self.path_text.yview)
+
+        path_scroll.pack(side="right", fill="y")
         self.path_text.pack(
+            side="left",
+            fill="both",
+            expand=True,
+            padx=10,
+            pady=10
+        )
+        self.path_text.config(state="disabled")
+
+        # Final Genome
+        self.genome_text = tk.Text(
+            self.genome_frame,
+            font=("Consolas", 14, "bold"),
+            fg="green",
+            bg="white",
+            wrap="word",
+            height=6
+        )
+
+        self.genome_text.pack(
             fill="both",
             expand=True,
             padx=10,
             pady=10
         )
 
-        # Final Genome
-        self.genome_label = tk.Label(
-            self.genome_frame,
-            text="Genome will appear here",
-            font=("Consolas", 24, "bold"),
-            bg="white",
-            fg="green"
-        )
-
-        self.genome_label.pack(
-            expand=True,
-            pady=30
-        )
+        self.genome_text.config(state="disabled")
 
         # Statistics
         self.stats_text = tk.Text(
@@ -354,12 +442,27 @@ class GenomeAssemblyGUI(tk.Tk):
             font=("Segoe UI", 11)
         )
 
+        stats_scroll = tk.Scrollbar(self.stats_frame)
+
+        self.stats_text = tk.Text(
+            self.stats_frame,
+            width=30,
+            height=12,
+            font=("Segoe UI", 11),
+            yscrollcommand=stats_scroll.set
+        )
+
+        stats_scroll.config(command=self.stats_text.yview)
+
+        stats_scroll.pack(side="right", fill="y")
         self.stats_text.pack(
+            side="left",
             fill="both",
             expand=True,
             padx=10,
             pady=10
         )
+        self.stats_text.config(state="disabled")
 
     def load_file(self):
         filepath = filedialog.askopenfilename(
@@ -392,62 +495,142 @@ class GenomeAssemblyGUI(tk.Tk):
             )
 
     def show_result(self):
+
         manual_reads = DNAParser.parse_manual(
             self.read_text.get("1.0", tk.END)
         )
+
         if manual_reads:
             self.reads = manual_reads
+
         if not self.reads:
             messagebox.showwarning(
                 "Warning",
                 "Please enter DNA reads."
             )
             return
-        self.kmer_text.delete("1.0", tk.END)
+
         k = int(self.kmer_var.get())
-        total = 0
-        for read in self.reads:
-            for i in range(len(read) - k + 1):
-                kmer = read[i:i + k]
-                total += 1
-                self.kmer_text.insert(
-                    tk.END,
-                    f"{total}. {kmer}\n"
-                )
+
+        assembler = GenomeAssembler(self.reads, k)
+
+        result = assembler.assemble()
+
+        # K-mers
+        self.kmer_text.config(state="normal")
+        self.kmer_text.delete("1.0", tk.END)
+        for i, kmer in enumerate(result["kmers"], start=1):
+            self.kmer_text.insert(
+                tk.END,
+                f"{i}. {kmer}\n"
+            )
+
+        self.kmer_text.config(state="disabled")
+
+        # Eulerian Path
+        self.path_text.config(state="normal")
+        self.path_text.delete("1.0", tk.END)
+        if result["path"]:
+            self.path_text.insert(
+                tk.END,
+                "\n↓\n".join(result["path"])
+            )
+        else:
+            self.path_text.insert(
+                tk.END,
+                "No Eulerian Path"
+            )
+
+        self.path_text.config(state="disabled")
+
+        # Genome
+        self.genome_text.config(state="normal")
+        self.genome_text.delete("1.0", tk.END)
+        self.genome_text.insert(tk.END, result["genome"])
+        self.genome_text.config(state="disabled")
+
+        # Statistics
+        stats = result["stats"]
+        self.stats_text.config(state="normal")
         self.stats_text.delete("1.0", tk.END)
         self.stats_text.insert(
             tk.END,
-            f"Number of Reads : {len(self.reads)}\n"
+            f"Number of Reads : {stats['reads']}\n"
         )
+
         self.stats_text.insert(
             tk.END,
-            f"K-mer Size      : {k}\n"
+            f"K-mer Size      : {stats['k']}\n"
         )
+
         self.stats_text.insert(
             tk.END,
-            "Graph Nodes     : --\n"
+            f"Graph Nodes     : {stats['nodes']}\n"
         )
+
         self.stats_text.insert(
             tk.END,
-            "Graph Edges     : --\n"
+            f"Graph Edges     : {stats['edges']}\n"
         )
+
         self.stats_text.insert(
             tk.END,
-            "Eulerian Path   : --\n"
+            f"Eulerian Path   : {'YES' if stats['path_found'] else 'NO'}\n"
         )
+
         self.stats_text.insert(
             tk.END,
-            "Genome Length   : --\n"
+            f"Genome Length   : {stats['genome_length']} bp\n"
         )
+
+        self.stats_text.config(state="disabled")
+
+        # Draw Graph
+        figure = GraphDrawer.draw(result["graph"])
+
+        for widget in self.graph_frame.winfo_children():
+            widget.destroy()
+
+        canvas = FigureCanvasTkAgg(
+            figure,
+            master=self.graph_frame
+        )
+
+        canvas.draw()
+
+        canvas.get_tk_widget().pack(
+            fill="both",
+            expand=True,
+            padx=5,
+            pady=5
+        )
+
+        plt.close(figure)
+
+        self.export_btn.config(state="normal")
 
     def reset_all(self):
         self.read_text.delete("1.0", tk.END)
+
+        self.kmer_text.config(state="normal")
+        self.path_text.config(state="normal")
+        self.stats_text.config(state="normal")
+
         self.kmer_text.delete("1.0", tk.END)
         self.path_text.delete("1.0", tk.END)
         self.stats_text.delete("1.0", tk.END)
-        self.genome_label.config(
-            text="Genome will appear here"
-        )
+
+        self.kmer_text.config(state="disabled")
+        self.path_text.config(state="disabled")
+        self.stats_text.config(state="disabled")
+
+        self.genome_text.config(state="normal")
+        self.genome_text.delete("1.0", tk.END)
+        self.genome_text.insert(tk.END, "Genome will appear here")
+        self.genome_text.config(state="disabled")
+
+        for widget in self.graph_frame.winfo_children():
+            widget.destroy()
         self.reads = []
         self.current_file = None
 

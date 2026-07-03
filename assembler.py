@@ -6,7 +6,7 @@ class GenomeAssembler:
         self.k = k
 
         self.kmers = []
-        self.graph = defaultdict(list)
+        self.graph = defaultdict(set)
 
         self.in_degree = defaultdict(int)
         self.out_degree = defaultdict(int)
@@ -24,6 +24,7 @@ class GenomeAssembler:
         return self.kmers
 
     # De Bruin Graph
+    # De Bruijn Graph
     def build_graph(self):
         self.graph.clear()
         self.in_degree.clear()
@@ -33,13 +34,14 @@ class GenomeAssembler:
             left = kmer[:-1]
             right = kmer[1:]
 
-            self.graph[left].append(right)
+            # Store only unique edges
+            self.graph[left].add(right)
 
             self.out_degree[left] += 1
             self.in_degree[right] += 1
 
             if right not in self.graph:
-                self.graph[right] = []
+                self.graph[right] = set()
 
         return self.graph
 
@@ -61,7 +63,10 @@ class GenomeAssembler:
 
     # Eulerian path
     def eulerian_path(self):
-        graph = {node: edges[:] for node, edges in self.graph.items()}
+        graph = {
+            node: list(edges)
+            for node, edges in self.graph.items()
+        }
         start = self.find_start_node()
         if start is None:
             return []
@@ -89,15 +94,14 @@ class GenomeAssembler:
 
     # Statistics
     def statistics(self, path, genome):
-        edges = 0
-        for node in self.graph:
-            edges += len(self.graph[node])
+        edges = sum(len(neighbors) for neighbors in self.graph.values())
+
         return {
             "reads": len(self.reads),
             "k": self.k,
             "nodes": len(self.graph),
             "edges": edges,
-            "path_found": "YES" if path else "NO",
+            "path_found": bool(path),
             "genome_length": len(genome)
         }
 
