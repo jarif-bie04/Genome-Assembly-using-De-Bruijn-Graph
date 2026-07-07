@@ -23,7 +23,6 @@ class GenomeAssembler:
 
         return self.kmers
 
-    # De Bruin Graph
     # De Bruijn Graph
     def build_graph(self):
         self.graph.clear()

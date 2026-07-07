@@ -30,38 +30,94 @@ class DNAParser:
                 reads.append(line)
         return reads
 
+    # @staticmethod
+    # def parse_fasta(filepath):
+    #     reads = []
+    #     current = ""
+    #     with open(filepath, "r") as file:
+    #         for line in file:
+    #             line = line.strip()
+    #             if not line:
+    #                 continue
+    #             if line.startswith(">"):
+    #                 if current:
+    #                     current = DNAParser.clean_sequence(current)
+    #                     if DNAParser.validate_sequence(current):
+    #                         reads.append(current)
+    #                 current = ""
+    #             else:
+    #                 current += line
+    #     if current:
+    #         current = DNAParser.clean_sequence(current)
+    #         if DNAParser.validate_sequence(current):
+    #             reads.append(current)
+    #     return reads
+
     @staticmethod
     def parse_fasta(filepath):
+        MAX_READS = 100  # Change to 20, 50, 100 if you want
+
         reads = []
         current = ""
+
         with open(filepath, "r") as file:
             for line in file:
                 line = line.strip()
+
                 if not line:
                     continue
+
                 if line.startswith(">"):
                     if current:
                         current = DNAParser.clean_sequence(current)
+
                         if DNAParser.validate_sequence(current):
                             reads.append(current)
-                    current = ""
+
+                            if len(reads) >= MAX_READS:
+                                break
+
+                        current = ""
                 else:
                     current += line
-        if current:
+
+        if current and len(reads) < MAX_READS:
             current = DNAParser.clean_sequence(current)
             if DNAParser.validate_sequence(current):
                 reads.append(current)
+
         return reads
+
+    # @staticmethod
+    # def parse_fastq(filepath):
+    #     reads = []
+    #     with open(filepath, "r") as file:
+    #         lines = file.readlines()
+    #     for i in range(1, len(lines), 4):
+    #         seq = DNAParser.clean_sequence(lines[i])
+    #         if DNAParser.validate_sequence(seq):
+    #             reads.append(seq)
+    #     return reads
 
     @staticmethod
     def parse_fastq(filepath):
+        MAX_READS = 100
+
         reads = []
+
         with open(filepath, "r") as file:
             lines = file.readlines()
+
         for i in range(1, len(lines), 4):
+
+            if len(reads) >= MAX_READS:
+                break
+
             seq = DNAParser.clean_sequence(lines[i])
+
             if DNAParser.validate_sequence(seq):
                 reads.append(seq)
+
         return reads
 
     @staticmethod
